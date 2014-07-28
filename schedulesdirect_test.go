@@ -22,7 +22,7 @@ func setup() {
 
 	// schedules direct client configured to use test server
 	client = sdclient{
-		baseUrl: server.URL,
+		baseURL: server.URL,
 	}
 }
 
