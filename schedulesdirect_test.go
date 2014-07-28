@@ -31,9 +31,9 @@ func testMethod(t *testing.T, r *http.Request, expectedMethod string) {
 		t.Fatalf("method (%s) != expectedMethod (%s)", r.Method, expectedMethod)
 	}
 
-	var tokenRequest TokenRequest
+	var tokenReq tokenRequest
 
-	errDecode := json.NewDecoder(r.Body).Decode(&tokenRequest)
+	errDecode := json.NewDecoder(r.Body).Decode(&tokenReq)
 	if errDecode != nil {
 		t.Fatal(errDecode)
 	}

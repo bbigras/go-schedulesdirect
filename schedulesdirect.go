@@ -21,12 +21,12 @@ func hashPassword(password string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-type TokenRequest struct {
+type tokenRequest struct {
 	User string `json:"username"`
 	Pass string `json:"password"`
 }
 
-type TokenResponse struct {
+type tokenResponse struct {
 	Code     int    `json:"code"`
 	Message  string `json:"message"`
 	ServerID string `json:"serverID"`
@@ -44,9 +44,9 @@ func NewClient() *sdclient {
 }
 
 func (c sdclient) GetToken(username, password string) (string, error) {
-	tokenRequest := TokenRequest{username, hashPassword(password)}
+	tokenReq := tokenRequest{username, hashPassword(password)}
 
-	data, errM := json.Marshal(tokenRequest)
+	data, errM := json.Marshal(tokenReq)
 	if errM != nil {
 		return "", errM
 	}
@@ -69,19 +69,19 @@ func (c sdclient) GetToken(username, password string) (string, error) {
 		return "", errRead
 	}
 
-	var repToken TokenResponse
+	var tokenResp tokenResponse
 
-	errUnmarshal := json.Unmarshal(r, &repToken)
+	errUnmarshal := json.Unmarshal(r, &tokenResp)
 	if errUnmarshal != nil {
 		return "", errUnmarshal
 	}
 
-	if repToken.Code != 0 {
-		return "", fmt.Errorf("repToken.Code != 0: %d", repToken.Code)
+	if tokenResp.Code != 0 {
+		return "", fmt.Errorf("tokenResp.Code != 0: %d", tokenResp.Code)
 	}
-	if repToken.Message != "OK" {
-		return "", fmt.Errorf("repToken.Message != OK: %s", repToken.Message)
+	if tokenResp.Message != "OK" {
+		return "", fmt.Errorf("tokenResp.Message != OK: %s", tokenResp.Message)
 	}
 
-	return repToken.Token, nil
+	return tokenResp.Token, nil
 }
