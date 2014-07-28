@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	baseurl = "https://json.schedulesdirect.org/20131021/"
+	BASEURL = "https://json.schedulesdirect.org/20131021"
 )
 
 func hashPassword(password string) string {
@@ -33,7 +33,17 @@ type TokenResponse struct {
 	Token    string `json:"token"`
 }
 
-func GetToken(username, password string) (string, error) {
+type sdclient struct {
+	baseUrl string
+}
+
+func NewClient() *sdclient {
+	return &sdclient{
+		baseUrl: BASEURL,
+	}
+}
+
+func (c sdclient) GetToken(username, password string) (string, error) {
 	tokenRequest := TokenRequest{username, hashPassword(password)}
 
 	data, errM := json.Marshal(tokenRequest)
@@ -44,7 +54,7 @@ func GetToken(username, password string) (string, error) {
 	reader := bytes.NewReader(data)
 
 	// TODO: check for something like path.Join() for URLs
-	resp, errPost := http.Post(baseurl+"token", "application/json", reader)
+	resp, errPost := http.Post(c.baseUrl+"/token", "application/json", reader)
 	if errPost != nil {
 		return "", errPost
 	}
