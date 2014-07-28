@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -52,7 +51,7 @@ func GetToken(username, password string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", errors.New(fmt.Sprintf("resp.StatusCode != 200: %d", resp.StatusCode))
+		return "", fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
 	}
 
 	r, errRead := ioutil.ReadAll(resp.Body)
@@ -68,10 +67,10 @@ func GetToken(username, password string) (string, error) {
 	}
 
 	if repToken.Code != 0 {
-		return "", errors.New(fmt.Sprintf("repToken.Code != 0: %d", repToken.Code))
+		return "", fmt.Errorf("repToken.Code != 0: %d", repToken.Code)
 	}
 	if repToken.Message != "OK" {
-		return "", errors.New(fmt.Sprintf("repToken.Message != OK: %s", repToken.Message))
+		return "", fmt.Errorf("repToken.Message != OK: %s", repToken.Message)
 	}
 
 	return repToken.Token, nil
