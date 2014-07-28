@@ -1,0 +1,78 @@
+package schedulesdirect
+
+import (
+	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+)
+
+const (
+	baseurl = "https://json.schedulesdirect.org/20131021/"
+)
+
+func hashPassword(password string) string {
+	h := sha1.New()
+	io.WriteString(h, password)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+type TokenRequest struct {
+	User string `json:"username"`
+	Pass string `json:"password"`
+}
+
+type TokenResponse struct {
+	Code     int    `json:"code"`
+	Message  string `json:"message"`
+	ServerID string `json:"serverID"`
+	Token    string `json:"token"`
+}
+
+func GetToken(username, password string) (string, error) {
+	tokenRequest := TokenRequest{username, hashPassword(password)}
+
+	data, errM := json.Marshal(tokenRequest)
+	if errM != nil {
+		return "", errM
+	}
+
+	reader := bytes.NewReader(data)
+
+	// TODO: check for something like path.Join() for URLs
+	resp, errPost := http.Post(baseurl+"token", "application/json", reader)
+	if errPost != nil {
+		return "", errPost
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", errors.New(fmt.Sprintf("resp.StatusCode != 200: %d", resp.StatusCode))
+	}
+
+	r, errRead := ioutil.ReadAll(resp.Body)
+	if errRead != nil {
+		return "", errRead
+	}
+
+	var repToken TokenResponse
+
+	errUnmarshal := json.Unmarshal(r, &repToken)
+	if errUnmarshal != nil {
+		return "", errUnmarshal
+	}
+
+	if repToken.Code != 0 {
+		return "", errors.New(fmt.Sprintf("repToken.Code != 0: %d", repToken.Code))
+	}
+	if repToken.Message != "OK" {
+		return "", errors.New(fmt.Sprintf("repToken.Message != OK: %s", repToken.Message))
+	}
+
+	return repToken.Token, nil
+}
