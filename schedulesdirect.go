@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -64,16 +63,11 @@ func (c sdclient) GetToken(username, password string) (string, error) {
 		return "", fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
 	}
 
-	r, errRead := ioutil.ReadAll(resp.Body)
-	if errRead != nil {
-		return "", errRead
-	}
-
 	var tokenResp tokenResponse
 
-	errUnmarshal := json.Unmarshal(r, &tokenResp)
-	if errUnmarshal != nil {
-		return "", errUnmarshal
+	errDecode := json.NewDecoder(resp.Body).Decode(&tokenResp)
+	if errDecode != nil {
+		return "", errDecode
 	}
 
 	if tokenResp.Code != 0 {
