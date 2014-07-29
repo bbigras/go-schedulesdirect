@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,14 @@ import (
 
 const (
 	baseurl = "https://json.schedulesdirect.org/20131021"
+)
+
+const (
+	sd_err_INVALID_USER = 4003
+)
+
+var (
+	err_INVALID_USER = errors.New("Invalid user")
 )
 
 func hashPassword(password string) string {
@@ -71,7 +80,9 @@ func (c sdclient) GetToken(username, password string) (string, error) {
 		return "", errDecode
 	}
 
-	if tokenResp.Code != 0 {
+	if tokenResp.Code == sd_err_INVALID_USER {
+		return "", err_INVALID_USER
+	} else if tokenResp.Code != 0 {
 		return "", fmt.Errorf("tokenResp.Code != 0: %d", tokenResp.Code)
 	}
 	if tokenResp.Message != "OK" {

@@ -66,6 +66,30 @@ func TestGetTokenOK(t *testing.T) {
 	}
 }
 
+func TestGetTokenInvalidUser(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/token",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "POST")
+
+			var tokenReq tokenRequest
+
+			errDecode := json.NewDecoder(r.Body).Decode(&tokenReq)
+			if errDecode != nil {
+				t.Fatal(errDecode)
+			}
+
+			fmt.Fprint(w, `{"response":"INVALID_USER","code":4003,"serverID":"serverID1","message":"Invalid user.","datetime":"2014-07-29T01:00:28Z"}`)
+		},
+	)
+
+	_, errToken := client.GetToken("user1", "pass1")
+	if errToken != err_INVALID_USER {
+		t.Fatalf("errToken != err_INVALID_USER (%s)", errToken.Error())
+	}
+}
+
 func TestGetStatusOK(t *testing.T) {
 	setup()
 
