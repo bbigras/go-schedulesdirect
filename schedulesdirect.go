@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 const (
@@ -78,4 +79,57 @@ func (c sdclient) GetToken(username, password string) (string, error) {
 	}
 
 	return tokenResp.Token, nil
+}
+
+type status struct {
+	Account struct {
+		Expires                  time.Time `json:"expires"`
+		MaxLineups               int       `json:"maxLineups"`
+		Messages                 []string  `json:"messages"`
+		NextSuggestedConnectTime time.Time `json:"nextSuggestedConnectTime"`
+	} `json:"account"`
+	Lineups []struct {
+		ID       string    `json:"ID"`
+		Modified time.Time `json:"modified"`
+		Uri      string    `json:"uri"`
+	} `json:"lineups"`
+	Code           int       `json:"code"`
+	LastDataUpdate time.Time `json:"lastDataUpdate"`
+	Notifications  []string  `json:"notifications"`
+	SystemStatus   []struct {
+		Date    time.Time `json:"date"`
+		Status  string    `json:"status"`
+		Details string    `json:"details"`
+	} `json:"systemStatus"`
+	ServerID string `json:"serverID"`
+}
+
+func (c sdclient) GetStatus(token string) (string, error) {
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("GET", c.baseURL+"/status", nil)
+	if errNewRequest != nil {
+		return "", errNewRequest
+	}
+
+	req.Header.Add("token", token)
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return "", errDo
+	}
+	defer resp.Body.Close()
+
+	var s status
+
+	errDecode := json.NewDecoder(resp.Body).Decode(&s)
+	if errDecode != nil {
+		return "", errDecode
+	}
+
+	if s.Code != 0 {
+		return "", fmt.Errorf("s.Code != 0: %d", s.Code)
+	}
+
+	return "", nil
 }
