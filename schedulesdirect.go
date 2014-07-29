@@ -46,15 +46,15 @@ func NewClient() *sdclient {
 func (c sdclient) GetToken(username, password string) (string, error) {
 	tokenReq := tokenRequest{username, hashPassword(password)}
 
-	data, errM := json.Marshal(tokenReq)
-	if errM != nil {
-		return "", errM
+	var buf bytes.Buffer
+
+	errEncode := json.NewEncoder(&buf).Encode(tokenReq)
+	if errEncode != nil {
+		return "", errEncode
 	}
 
-	reader := bytes.NewReader(data)
-
 	// TODO: check for something like path.Join() for URLs
-	resp, errPost := http.Post(c.baseURL+"/token", "application/json", reader)
+	resp, errPost := http.Post(c.baseURL+"/token", "application/json", &buf)
 	if errPost != nil {
 		return "", errPost
 	}
