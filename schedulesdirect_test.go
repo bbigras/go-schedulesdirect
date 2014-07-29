@@ -66,6 +66,13 @@ func TestGetTokenOK(t *testing.T) {
 	}
 }
 
+func TestHashPassword(t *testing.T) {
+	if hashPassword("testpassword") != "8bb6118f8fd6935ad0876a3be34a717d32708ffd" {
+		t.Fail()
+	}
+
+}
+
 func TestGetTokenInvalidUser(t *testing.T) {
 	setup()
 
