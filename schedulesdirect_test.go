@@ -1,8 +1,10 @@
 package schedulesdirect
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -36,6 +38,17 @@ func testMethod(t *testing.T, r *http.Request, expectedMethod string) {
 func testHeader(t *testing.T, r *http.Request, header, expectedValue string) {
 	if r.Header.Get(header) != expectedValue {
 		t.Fatalf("token (%s) != expectedValue (%s)", r.Header.Get("token"), expectedValue)
+	}
+}
+
+func testPayload(t *testing.T, r *http.Request, expect []byte) {
+	data, errRead := ioutil.ReadAll(r.Body)
+	if errRead != nil {
+		t.Fatal(errRead)
+	}
+
+	if !bytes.Equal(data, expect) {
+		t.Fatalf("payload doesn't match\nhas: >%s<\nexpect: >%s<", data, expect)
 	}
 }
 
@@ -419,6 +432,116 @@ func TestGetChannelMappingFailsLineupNotFound(t *testing.T) {
 	if errGetChannelMapping == nil {
 		t.Fail()
 	} else if errGetChannelMapping.Error() != "Lineup not in account. Add lineup to account before requesting mapping." {
+		t.Fail()
+	}
+}
+
+func TestGetProgramsInfoOK(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/programs",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "POST")
+			testHeader(t, r, "token", "token1")
+			testPayload(t, r, []byte(`{"request":["program1","program2"]}`+"\n"))
+
+			fmt.Fprint(w, `{"programID":"program1","titles":{"title120":"title1"},"eventDetails":{"subType":"subType1"},"originalAirDate":"2012-01-01","genres":["genre1"],"showType":"type1","md5":"edbb1c792032ba8685fd021c28c6ea74"}
+{"programID":"program2","titles":{"title120":"title2"},"eventDetails":{"subType":"subType2"},"originalAirDate":"2012-01-01","genres":["genre2"],"showType":"type2","md5":"edbb1c792032ba8685fd021c28c6ea74"}`)
+		},
+	)
+
+	programs, err := client.GetProgramsInfo("token1", []string{
+		"program1",
+		"program2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(programs) != 2 {
+		t.Fail()
+	} else {
+		if programs[0].ProgramID != "program1" {
+			t.Fail()
+		}
+		if programs[1].ProgramID != "program2" {
+			t.Fail()
+		}
+	}
+}
+
+func TestGetProgramsInfoFailsRequiredRequestMissing(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/programs",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "POST")
+			testHeader(t, r, "token", "token1")
+			testPayload(t, r, []byte(`{"request":["program1","program2"]}`+"\n"))
+
+			fmt.Fprint(w, `{"response":"REQUIRED_REQUEST_MISSING","code":2002,"serverID":"serverid1","message":"Did not receive request.","datetime":"2014-07-30T05:02:22Z"}`)
+		},
+	)
+
+	_, err := client.GetProgramsInfo("token1", []string{
+		"program1",
+		"program2",
+	})
+	if err == nil {
+		t.Fail()
+	} else if err.Error() != "Did not receive request." {
+		t.Log(err)
+		t.Fail()
+	}
+}
+
+func TestGetProgramsInfoFailsDeflateRequired(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/programs",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "POST")
+			testHeader(t, r, "token", "token1")
+			testPayload(t, r, []byte(`{"request":["program1","program2"]}`+"\n"))
+
+			fmt.Fprint(w, `{"response":"DEFLATE_REQUIRED","code":1002,"serverID":"serverid1","message":"Did not receive Accept-Encoding: deflate in request","datetime":"2014-07-30T05:02:42Z"}`)
+		},
+	)
+
+	_, err := client.GetProgramsInfo("token1", []string{
+		"program1",
+		"program2",
+	})
+	if err == nil {
+		t.Fail()
+	} else if err.Error() != "Did not receive Accept-Encoding: deflate in request" {
+		t.Log(err)
+		t.Fail()
+	}
+}
+
+func TestGetProgramsInfoFailsInvalidProgramId(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/programs",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "POST")
+			testHeader(t, r, "token", "token1")
+			testPayload(t, r, []byte(`{"request":["program1","program2"]}`+"\n"))
+
+			fmt.Fprint(w, `{"programID":"programId1","titles":{"title120":"title1"},"eventDetails":{"subType":"subType1"},"originalAirDate":"2012-01-01","genres":["genre1"],"showType":"type1","md5":"25f8fe42987463fd773aaff27167fc3d"}
+	   {"response":"INVALID_PROGRAMID","code":6000,"serverID":"serverid1","message":"Could not find requested programID.","datetime":"2014-07-30T05:04:14Z","programID":"programId2"}`)
+		},
+	)
+
+	_, err := client.GetProgramsInfo("token1", []string{
+		"program1",
+		"program2",
+	})
+	if err == nil {
+		t.Fail()
+	} else if err.Error() != "programId2: Could not find requested programID." {
+		t.Log(err)
 		t.Fail()
 	}
 }

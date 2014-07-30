@@ -1,6 +1,7 @@
 package schedulesdirect
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
@@ -441,5 +442,86 @@ func (c sdclient) GetLineups(token string) (lineups, error) {
 		}
 
 		return l, nil
+	}
+}
+
+type request struct {
+	Request []string `json:"request"`
+}
+
+type program struct {
+	EventDetails struct {
+		SubType string `json:"subType"`
+	} `json:"eventDetails"`
+
+	Genres          []string          `json:"genres"`
+	Md5             string            `json:"md5"`
+	OriginalAirDate string            `json:"originalAirDate"`
+	ProgramID       string            `json:"programID"`
+	ShowType        string            `json:"showType"`
+	Titles          map[string]string `json:"titles"`
+
+	// for errors
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (c sdclient) GetProgramsInfo(token string, programs []string) ([]program, error) {
+
+	r := request{programs}
+
+	var buf bytes.Buffer
+
+	errEncode := json.NewEncoder(&buf).Encode(r)
+	if errEncode != nil {
+		return []program{}, errEncode
+	}
+
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("POST", c.baseURL+apiVersion+"/programs", &buf)
+	if errNewRequest != nil {
+		return []program{}, errNewRequest
+	}
+
+	req.Header.Add("token", token)
+	req.Header.Add("Accept-Encoding", "deflate")
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return []program{}, errDo
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return []program{}, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
+	var result []program
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		var p program
+
+		errUnmarshal := json.Unmarshal(scanner.Bytes(), &p)
+		if errUnmarshal != nil {
+			return []program{}, errUnmarshal
+		}
+
+		if p.Code != 0 {
+			if p.ProgramID == "" {
+				return []program{}, errors.New(p.Message)
+			} else {
+				return []program{}, fmt.Errorf("%s: %s", p.ProgramID, p.Message)
+			}
+		}
+
+		result = append(result, p)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return []program{}, err
+	} else {
+		return result, nil
 	}
 }
