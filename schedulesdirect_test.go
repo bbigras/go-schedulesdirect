@@ -180,7 +180,7 @@ func TestGetHeadendsFailsWithMessage(t *testing.T) {
 			testUrlParameter(t, r, "country", "CAN")
 			testUrlParameter(t, r, "postalcode", "H0H 0H0")
 
-			fmt.Fprint(w, `{"response":"INVALID_PARAMETER:COUNTRY","code":2050,"serverID":"AWS-SD-web.1","message":"The COUNTRY parameter must be ISO-3166-1 alpha 3. See http:\/\/en.wikipedia.org\/wiki\/ISO_3166-1_alpha-3","datetime":"2014-07-29T23:16:52Z"}`)
+			fmt.Fprint(w, `{"response":"INVALID_PARAMETER:COUNTRY","code":2050,"serverID":"serverID1","message":"The COUNTRY parameter must be ISO-3166-1 alpha 3. See http:\/\/en.wikipedia.org\/wiki\/ISO_3166-1_alpha-3","datetime":"2014-07-29T23:16:52Z"}`)
 		},
 	)
 
@@ -200,7 +200,7 @@ func TestGetHeadendsFailsWithMessage2(t *testing.T) {
 			testUrlParameter(t, r, "country", "CAN")
 			testUrlParameter(t, r, "postalcode", "H0H 0H0")
 
-			fmt.Fprint(w, `{"response":"REQUIRED_PARAMETER_MISSING:COUNTRY","code":2004,"serverID":"AWS-SD-web.1","message":"In order to search for lineups, you must supply a 3-letter country parameter.","datetime":"2014-07-29T23:15:18Z"}`)
+			fmt.Fprint(w, `{"response":"REQUIRED_PARAMETER_MISSING:COUNTRY","code":2004,"serverID":"serverID1","message":"In order to search for lineups, you must supply a 3-letter country parameter.","datetime":"2014-07-29T23:15:18Z"}`)
 		},
 	)
 
