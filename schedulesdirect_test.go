@@ -189,3 +189,23 @@ func TestGetHeadendsFailsWithMessage(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestGetHeadendsFailsWithMessage2(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/headends",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+			testUrlParameter(t, r, "country", "CAN")
+			testUrlParameter(t, r, "postalcode", "H0H 0H0")
+
+			fmt.Fprint(w, `{"response":"REQUIRED_PARAMETER_MISSING:COUNTRY","code":2004,"serverID":"AWS-SD-web.1","message":"In order to search for lineups, you must supply a 3-letter country parameter.","datetime":"2014-07-29T23:15:18Z"}`)
+		},
+	)
+
+	_, errGetHeadends := client.GetHeadends("token1", "CAN", "H0H 0H0")
+	if errGetHeadends.Error() != "In order to search for lineups, you must supply a 3-letter country parameter." {
+		t.Fail()
+	}
+}

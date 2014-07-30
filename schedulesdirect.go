@@ -20,8 +20,7 @@ const (
 )
 
 const (
-	sd_err_INVALID_USER      = 4003
-	sd_err_INVALID_PARAMETER = 2050 // not sure, it's not listed on the web site
+	sd_err_INVALID_USER = 4003
 )
 
 var (
@@ -221,10 +220,8 @@ func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]hea
 		errUnmarshal2 := json.Unmarshal(data, &respError)
 		if errUnmarshal2 != nil {
 			return map[string]headend{}, errUnmarshal
-		} else if respError.Code == sd_err_INVALID_PARAMETER {
-			return map[string]headend{}, errors.New(respError.Message)
 		} else {
-			return map[string]headend{}, fmt.Errorf("error code unknown: %d", respError.Code)
+			return map[string]headend{}, errors.New(respError.Message)
 		}
 	}
 
