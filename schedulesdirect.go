@@ -135,40 +135,40 @@ type status struct {
 	ServerID string `json:"serverID"`
 }
 
-func (c sdclient) GetStatus(token string) (string, error) {
+func (c sdclient) GetStatus(token string) (status, error) {
 	var clientHttp http.Client
 
 	req, errNewRequest := http.NewRequest("GET", c.baseURL+apiVersion+"/status", nil)
 	if errNewRequest != nil {
-		return "", errNewRequest
+		return status{}, errNewRequest
 	}
 
 	req.Header.Add("token", token)
 
 	resp, errDo := clientHttp.Do(req)
 	if errDo != nil {
-		return "", errDo
+		return status{}, errDo
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusForbidden {
-		return "", Err_Forbidden
+		return status{}, Err_Forbidden
 	} else if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+		return status{}, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
 	}
 
 	var s status
 
 	errDecode := json.NewDecoder(resp.Body).Decode(&s)
 	if errDecode != nil {
-		return "", errDecode
+		return status{}, errDecode
 	}
 
 	if s.Code != 0 {
-		return "", fmt.Errorf("s.Code != 0: %d", s.Code)
+		return status{}, fmt.Errorf("s.Code != 0: %d", s.Code)
 	}
 
-	return "", nil
+	return s, nil
 }
 
 type lineup struct {

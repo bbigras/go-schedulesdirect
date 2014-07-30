@@ -144,9 +144,15 @@ func TestGetStatusOK(t *testing.T) {
 		},
 	)
 
-	_, err := client.GetStatus("token1")
+	status, err := client.GetStatus("token1")
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if len(status.SystemStatus) != 1 {
+		t.Fail()
+	} else if status.SystemStatus[0].Details != "All servers running normally." {
+		t.Fail()
 	}
 }
 
