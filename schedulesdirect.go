@@ -28,6 +28,8 @@ const (
 )
 
 var (
+	Err_Forbidden = errors.New("Forbidden")
+
 	err_INVALID_USER = errors.New("Invalid user")
 	// err_NO_HEADENDS  = errors.New("No headends")
 )
@@ -149,7 +151,9 @@ func (c sdclient) GetStatus(token string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode == http.StatusForbidden {
+		return "", Err_Forbidden
+	} else if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
 	}
 
