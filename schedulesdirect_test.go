@@ -289,6 +289,47 @@ func TestAddLineupFailsInvalidUser(t *testing.T) {
 	}
 }
 
+func TestDelLineupOK(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "DELETE")
+			testHeader(t, r, "token", "token1")
+			fmt.Fprint(w, `{"response":"OK","code":0,"serverID":"serverid1","message":"Deleted lineup.","changesRemaining":"5","datetime":"2014-07-30T03:27:23Z"}`)
+		},
+	)
+
+	changesRemaining, errDelLineup := client.DelLineup("token1", "/20131021/lineups/CAN-0000001-X")
+	if errDelLineup != nil {
+		t.Fatal(errDelLineup)
+	}
+
+	if changesRemaining != 5 {
+		t.Fail()
+	}
+}
+
+func TestDelLineupFailsInvalidLineup(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "DELETE")
+			testHeader(t, r, "token", "token1")
+
+			fmt.Fprint(w, `{"response":"INVALID_LINEUP","code":2105,"serverID":"serverID1","message":"The lineup you submitted doesn't exist.","datetime":"2014-07-30T02:02:04Z"}`)
+		},
+	)
+
+	_, errDelLineup := client.DelLineup("token1", "/20131021/lineups/CAN-0000001-X")
+	if errDelLineup == nil {
+		t.Fail()
+	} else if errDelLineup.Error() != "The lineup you submitted doesn't exist." {
+		t.Fail()
+	}
+}
+
 func TestGetLineupsOK(t *testing.T) {
 	setup()
 

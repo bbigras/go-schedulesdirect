@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,6 +29,11 @@ const (
 var (
 	err_INVALID_USER = errors.New("Invalid user")
 	// err_NO_HEADENDS  = errors.New("No headends")
+)
+
+const (
+	opLineupAdd = iota
+	opLineupDel
 )
 
 func hashPassword(password string) string {
@@ -179,6 +185,11 @@ type responseAddLineup struct {
 	Datetime         time.Time `json:"datetime"`
 }
 
+type responseDelLineup struct {
+	responseAddLineup
+	ChangesRemaining string `json:"changesRemaining"`
+}
+
 type lineups struct {
 	Datetime time.Time `json:"datetime"`
 	Lineups  []struct {
@@ -248,10 +259,10 @@ func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]hea
 	return headends, nil
 }
 
-func (c sdclient) AddLineup(token, uri string) (int, error) {
+func addDelLineup(c sdclient, token, uri, method string, typeOpLineup int) (int, error) {
 	var clientHttp http.Client
 
-	req, errNewRequest := http.NewRequest("PUT", c.baseURL+uri, nil)
+	req, errNewRequest := http.NewRequest(method, c.baseURL+uri, nil)
 	if errNewRequest != nil {
 		return -1, errNewRequest
 	}
@@ -264,7 +275,7 @@ func (c sdclient) AddLineup(token, uri string) (int, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 200 && resp.StatusCode != 400 {
 		return -1, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
 	}
 
@@ -275,9 +286,35 @@ func (c sdclient) AddLineup(token, uri string) (int, error) {
 
 	var r responseAddLineup
 
-	errUnmarshal := json.Unmarshal(data, &r)
-	if errUnmarshal != nil {
-		return -1, errUnmarshal
+	switch typeOpLineup {
+	case opLineupAdd:
+		errUnmarshal := json.Unmarshal(data, &r)
+		if errUnmarshal != nil {
+			return -1, errUnmarshal
+		}
+	case opLineupDel:
+		// ChangesRemaining is a int when adding a lineup and a string when deleting
+		// see: https://github.com/SchedulesDirect/JSON-Service/issues/32
+		var repDelLineup responseDelLineup
+
+		errUnmarshal := json.Unmarshal(data, &repDelLineup)
+		if errUnmarshal != nil {
+			return -1, errUnmarshal
+		}
+
+		if repDelLineup.Code != 0 {
+			return -1, errors.New(repDelLineup.Message)
+		}
+
+		r = repDelLineup.responseAddLineup
+
+		var errAtoi error
+		r.ChangesRemaining, errAtoi = strconv.Atoi(repDelLineup.ChangesRemaining)
+		if errAtoi != nil {
+			return -1, errAtoi
+		}
+	default:
+		return -1, fmt.Errorf("typeOpLineup unknown: %d", typeOpLineup)
 	}
 
 	if r.Code == 0 && r.Response == "OK" {
@@ -285,6 +322,14 @@ func (c sdclient) AddLineup(token, uri string) (int, error) {
 	} else {
 		return -1, errors.New(r.Message)
 	}
+}
+
+func (c sdclient) AddLineup(token, uri string) (int, error) {
+	return addDelLineup(c, token, uri, "PUT", opLineupAdd)
+}
+
+func (c sdclient) DelLineup(token, uri string) (int, error) {
+	return addDelLineup(c, token, uri, "DELETE", opLineupDel)
 }
 
 func (c sdclient) GetLineups(token string) (lineups, error) {
