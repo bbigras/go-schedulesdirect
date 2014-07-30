@@ -332,6 +332,73 @@ func (c sdclient) DelLineup(token, uri string) (int, error) {
 	return addDelLineup(c, token, uri, "DELETE", opLineupDel)
 }
 
+type channelMapping struct {
+	Map []struct {
+		Channel   string `json:"map"`
+		StationId string `json:"stationID"`
+	} `json:"map"`
+	Metadata struct {
+		Lineup    string    `json:"lineup"`
+		Modified  time.Time `json:"modified"`
+		Transport string    `json:"transport"`
+	} `json:"metadata"`
+	Stations []struct {
+		affiliate   string `json:"affiliate"`
+		broadcaster struct {
+			city       string `json:"city"`
+			country    string `json:"country"`
+			postalcode string `json:"postalcode"`
+		} `json:"broadcaster"`
+		Callsign  string `json:"callsign"`
+		Language  string `json:"language"`
+		Name      string `json:"name"`
+		StationID string `json:"stationID"`
+		Logo      struct {
+			URL       string `json:"URL"`
+			Dimension string `json:"dimension"`
+			Md5       string `json:"md5"`
+		}
+	} `json:"stations"`
+
+	// To catch errors
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (c sdclient) GetChannelMapping(token, uri string) (channelMapping, error) {
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("GET", c.baseURL+uri, nil)
+	if errNewRequest != nil {
+		return channelMapping{}, errNewRequest
+	}
+
+	req.Header.Add("token", token)
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return channelMapping{}, errDo
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 && resp.StatusCode != 400 {
+		return channelMapping{}, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
+	var r channelMapping
+
+	errDecode := json.NewDecoder(resp.Body).Decode(&r)
+	if errDecode != nil {
+		return channelMapping{}, errDecode
+	}
+
+	if r.Code != 0 {
+		return channelMapping{}, errors.New(r.Message)
+	}
+
+	return r, nil
+}
+
 func (c sdclient) GetLineups(token string) (lineups, error) {
 	var clientHttp http.Client
 

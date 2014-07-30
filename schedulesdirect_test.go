@@ -376,3 +376,49 @@ func TestGetLineupsFailsNoHeadends(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestGetChannelMappingOK(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+			fmt.Fprint(w, `{"map": [{"channel": "101","stationID": "10001"},{"channel": "1933","stationID": "10001"}],"metadata": {"lineup": "CAN-0000000-X","modified": "2014-07-29T16:38:09Z","transport": "transport1"},"stations": [{"affiliate": "affiliate1","broadcaster": {"city": "Unknown","country": "Unknown","postalcode": "00000"},"callsign": "callsign1","language": "en","name": "name1","stationID": "10001"},       {"callsign": "callsign2","language": "en","logo": {"URL": "https://domain/path/file.png","dimension": "w=360px|h=270px","md5": "ba5b5b5085baac6da247564039c03c9e"},"name": "name2","stationID": "10002"}]}`)
+		},
+	)
+
+	channelMapping, errGetChannelMapping := client.GetChannelMapping("token1", "/20131021/lineups/CAN-0000001-X")
+	if errGetChannelMapping != nil {
+		t.Fatal(errGetChannelMapping)
+	}
+
+	if len(channelMapping.Map) != 2 {
+		t.Fail()
+	}
+	if len(channelMapping.Stations) != 2 {
+		t.Fail()
+	}
+	if channelMapping.Metadata.Lineup != "CAN-0000000-X" {
+		t.Fail()
+	}
+}
+
+func TestGetChannelMappingFailsLineupNotFound(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+			fmt.Fprint(w, `{"response":"LINEUP_NOT_FOUND","code":2101,"serverID":"serverid1","message":"Lineup not in account. Add lineup to account before requesting mapping.","datetime":"2014-07-30T04:14:27Z"}`)
+		},
+	)
+
+	_, errGetChannelMapping := client.GetChannelMapping("token1", "/20131021/lineups/CAN-0000001-X")
+	if errGetChannelMapping == nil {
+		t.Fail()
+	} else if errGetChannelMapping.Error() != "Lineup not in account. Add lineup to account before requesting mapping." {
+		t.Fail()
+	}
+}
