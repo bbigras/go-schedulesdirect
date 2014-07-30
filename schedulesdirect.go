@@ -131,6 +131,10 @@ func (c sdclient) GetStatus(token string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
 	var s status
 
 	errDecode := json.NewDecoder(resp.Body).Decode(&s)
