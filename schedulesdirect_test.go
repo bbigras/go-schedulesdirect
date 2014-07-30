@@ -223,7 +223,7 @@ func TestAddLineupOK(t *testing.T) {
 
 	changesRemaining, errAddLineup := client.AddLineup("token1", "/20131021/lineups/CAN-0000001-X")
 	if errAddLineup != nil {
-		t.Fail()
+		t.Fatal(errAddLineup)
 	}
 
 	if changesRemaining != 5 {
