@@ -43,6 +43,11 @@ func hashPassword(password string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+type codeMessage struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
 type tokenRequest struct {
 	User string `json:"username"`
 	Pass string `json:"password"`
@@ -449,6 +454,10 @@ type request struct {
 	Request []string `json:"request"`
 }
 
+type requestSchedules struct {
+	Request []int `json:"request"`
+}
+
 type program struct {
 	EventDetails struct {
 		SubType string `json:"subType"`
@@ -524,4 +533,107 @@ func (c sdclient) GetProgramsInfo(token string, programs []string) ([]program, e
 	} else {
 		return result, nil
 	}
+}
+
+type schedule struct {
+	StationID string `json:"stationID"`
+	Metadata  struct {
+		// TODO: check to use time.Time or something
+		EndDate   string `json:"endDate"` // 2014-08-12
+		StartDate string `json:"startDate"`
+	} `json:"metadata"`
+	Programs []struct {
+		AirDateTime     time.Time `json:"airDateTime"` // full iso datetime
+		AudioProperties []string  `json:"audioProperties"`
+		ContentRating   []struct {
+			Body string `json:"body"`
+			Code string `json:"code"`
+		}
+		ContentAdvisory map[string][]string
+		Duration        int    `json:"duration"`
+		Md5             string `json:"md5"`
+		ProgramID       string `json:"programID"`
+		Syndication     struct {
+			Source string `json:"source"`
+			Type   string `json:"type"`
+		} `json:"syndication"`
+		New bool `json:"new"`
+	} `json:"programs"`
+}
+
+func (c sdclient) GetSchedules(token string, stationsIDs []int) ([]schedule, error) {
+	r := requestSchedules{stationsIDs}
+
+	var buf bytes.Buffer
+
+	errEncode := json.NewEncoder(&buf).Encode(r)
+	if errEncode != nil {
+		return []schedule{}, errEncode
+	}
+
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("POST", c.baseURL+apiVersion+"/schedules", &buf)
+	if errNewRequest != nil {
+		return []schedule{}, errNewRequest
+	}
+
+	req.Header.Add("token", token)
+	req.Header.Add("Accept-Encoding", "deflate")
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return []schedule{}, errDo
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return []schedule{}, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
+	var result []schedule
+
+	reader := bufio.NewReader(resp.Body)
+
+	var buf2 bytes.Buffer
+
+	for {
+		data, isPrefix, errReadLine := reader.ReadLine()
+		if errReadLine == io.EOF {
+			break
+		} else if errReadLine != nil {
+			return []schedule{}, errReadLine
+		}
+
+		n, errWrite := buf2.Write(data)
+		if errWrite != nil {
+			return []schedule{}, errWrite
+		} else if n != len(data) {
+			return []schedule{}, errors.New("n != len(data)")
+		}
+
+		if !isPrefix {
+			// test if errors, can't use the same struct since stationID's format differs with the error message
+			// see: https://github.com/SchedulesDirect/JSON-Service/issues/33
+			var cm codeMessage
+			errUnmarshalCM := json.Unmarshal(buf2.Bytes(), &cm)
+			if errUnmarshalCM != nil {
+				return []schedule{}, errUnmarshalCM
+			} else if cm.Message != "" {
+				return []schedule{}, errors.New(cm.Message)
+			}
+
+			var p schedule
+			errUnmarshal := json.Unmarshal(buf2.Bytes(), &p)
+			if errUnmarshal != nil {
+				return []schedule{}, errUnmarshal
+			}
+
+			result = append(result, p)
+
+			buf2.Reset()
+		}
+	}
+
+	return result, nil
 }
