@@ -16,15 +16,18 @@ import (
 )
 
 const (
-	baseurl = "https://json.schedulesdirect.org/20131021"
+	baseurl    = "https://json.schedulesdirect.org"
+	apiVersion = "/20131021"
 )
 
 const (
 	sd_err_INVALID_USER = 4003
+	// sd_err_NO_HEADENDS  = 4102
 )
 
 var (
 	err_INVALID_USER = errors.New("Invalid user")
+	// err_NO_HEADENDS  = errors.New("No headends")
 )
 
 func hashPassword(password string) string {
@@ -66,7 +69,7 @@ func (c sdclient) GetToken(username, password string) (string, error) {
 	}
 
 	// TODO: check for something like path.Join() for URLs
-	resp, errPost := http.Post(c.baseURL+"/token", "application/json", &buf)
+	resp, errPost := http.Post(c.baseURL+apiVersion+"/token", "application/json", &buf)
 	if errPost != nil {
 		return "", errPost
 	}
@@ -121,7 +124,7 @@ type status struct {
 func (c sdclient) GetStatus(token string) (string, error) {
 	var clientHttp http.Client
 
-	req, errNewRequest := http.NewRequest("GET", c.baseURL+"/status", nil)
+	req, errNewRequest := http.NewRequest("GET", c.baseURL+apiVersion+"/status", nil)
 	if errNewRequest != nil {
 		return "", errNewRequest
 	}
@@ -170,13 +173,29 @@ type response struct {
 	ServerID string `json:"serverID"`
 }
 
+type responseAddLineup struct {
+	response
+	ChangesRemaining int       `json:"changesRemaining"`
+	Datetime         time.Time `json:"datetime"`
+}
+
+type lineups struct {
+	Datetime time.Time `json:"datetime"`
+	Lineups  []struct {
+		lineup
+		Location string `json:"location"`
+		Name     string `json:"name"`
+	} `json:"lineups"`
+	ServerID string `json:"serverID"`
+}
+
 // country must be ISO-3166-1 alpha 3, see : https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
 func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]headend, error) {
 	// There's a bug with postal code containing a space
 	// https://github.com/SchedulesDirect/JSON-Service/issues/31
 	postalcode = strings.Replace(postalcode, " ", "", -1)
 
-	u, err := url.Parse(c.baseURL + "/headends")
+	u, err := url.Parse(c.baseURL + apiVersion + "/headends")
 	if err != nil {
 		return map[string]headend{}, err
 	}
@@ -215,6 +234,7 @@ func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]hea
 	errUnmarshal := json.Unmarshal(data, &headends)
 	if errUnmarshal != nil {
 		// when there's an error, the service use another JSON format
+		// maybe I should use a struct with both fields
 		var respError response
 
 		errUnmarshal2 := json.Unmarshal(data, &respError)
@@ -226,4 +246,88 @@ func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]hea
 	}
 
 	return headends, nil
+}
+
+func (c sdclient) AddLineup(token, uri string) (int, error) {
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("PUT", c.baseURL+uri, nil)
+	if errNewRequest != nil {
+		return -1, errNewRequest
+	}
+
+	req.Header.Add("token", token)
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return -1, errDo
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return -1, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
+	data, errRead := ioutil.ReadAll(resp.Body)
+	if errRead != nil {
+		return -1, errRead
+	}
+
+	var r responseAddLineup
+
+	errUnmarshal := json.Unmarshal(data, &r)
+	if errUnmarshal != nil {
+		return -1, errUnmarshal
+	}
+
+	if r.Code == 0 && r.Response == "OK" {
+		return r.ChangesRemaining, nil
+	} else {
+		return -1, errors.New(r.Message)
+	}
+}
+
+func (c sdclient) GetLineups(token string) (lineups, error) {
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("GET", c.baseURL+apiVersion+"/lineups", nil)
+	if errNewRequest != nil {
+		return lineups{}, errNewRequest
+	}
+
+	req.Header.Add("token", token)
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return lineups{}, errDo
+	}
+	defer resp.Body.Close()
+
+	// TODO: only expect 400 for error code 4102
+	if resp.StatusCode != 200 && resp.StatusCode != 400 {
+		return lineups{}, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
+	data, errRead := ioutil.ReadAll(resp.Body)
+	if errRead != nil {
+		return lineups{}, errRead
+	}
+
+	var r response
+
+	errUnmarshal := json.Unmarshal(data, &r)
+	if errUnmarshal != nil {
+		return lineups{}, errUnmarshal
+	} else if r.Message != "" {
+		return lineups{}, errors.New(r.Message)
+	} else {
+		var l lineups
+
+		errUnmarshal2 := json.Unmarshal(data, &l)
+		if errUnmarshal2 != nil {
+			return lineups{}, errUnmarshal
+		}
+
+		return l, nil
+	}
 }

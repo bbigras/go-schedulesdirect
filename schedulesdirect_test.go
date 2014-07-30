@@ -56,7 +56,7 @@ func testUrlParameter(t *testing.T, r *http.Request, parameter, expectedValue st
 func TestGetTokenOK(t *testing.T) {
 	setup()
 
-	mux.HandleFunc("/token",
+	mux.HandleFunc(apiVersion+"/token",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "POST")
 
@@ -98,7 +98,7 @@ func TestHashPassword(t *testing.T) {
 func TestGetTokenInvalidUser(t *testing.T) {
 	setup()
 
-	mux.HandleFunc("/token",
+	mux.HandleFunc(apiVersion+"/token",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "POST")
 
@@ -122,7 +122,7 @@ func TestGetTokenInvalidUser(t *testing.T) {
 func TestGetStatusOK(t *testing.T) {
 	setup()
 
-	mux.HandleFunc("/status",
+	mux.HandleFunc(apiVersion+"/status",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
 			testHeader(t, r, "token", "token1")
@@ -140,7 +140,7 @@ func TestGetStatusOK(t *testing.T) {
 func TestGetHeadendsOK(t *testing.T) {
 	setup()
 
-	mux.HandleFunc("/headends",
+	mux.HandleFunc(apiVersion+"/headends",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
 			testHeader(t, r, "token", "token1")
@@ -173,7 +173,7 @@ func TestGetHeadendsOK(t *testing.T) {
 func TestGetHeadendsFailsWithMessage(t *testing.T) {
 	setup()
 
-	mux.HandleFunc("/headends",
+	mux.HandleFunc(apiVersion+"/headends",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
 			testHeader(t, r, "token", "token1")
@@ -193,7 +193,7 @@ func TestGetHeadendsFailsWithMessage(t *testing.T) {
 func TestGetHeadendsFailsWithMessage2(t *testing.T) {
 	setup()
 
-	mux.HandleFunc("/headends",
+	mux.HandleFunc(apiVersion+"/headends",
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "GET")
 			testHeader(t, r, "token", "token1")
@@ -206,6 +206,132 @@ func TestGetHeadendsFailsWithMessage2(t *testing.T) {
 
 	_, errGetHeadends := client.GetHeadends("token1", "CAN", "H0H 0H0")
 	if errGetHeadends.Error() != "In order to search for lineups, you must supply a 3-letter country parameter." {
+		t.Fail()
+	}
+}
+
+func TestAddLineupOK(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "PUT")
+			testHeader(t, r, "token", "token1")
+			fmt.Fprint(w, `{"response":"OK","code":0,"serverID":"serverID1","message":"Added lineup.","changesRemaining":5,"datetime":"2014-07-30T01:50:59Z"}`)
+		},
+	)
+
+	changesRemaining, errAddLineup := client.AddLineup("token1", "/20131021/lineups/CAN-0000001-X")
+	if errAddLineup != nil {
+		t.Fail()
+	}
+
+	if changesRemaining != 5 {
+		t.Fail()
+	}
+}
+
+func TestAddLineupFailsDuplicate(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "PUT")
+			testHeader(t, r, "token", "token1")
+			fmt.Fprint(w, `{"response":"DUPLICATE_HEADEND","code":2100,"serverID":"serverID1","message":"Headend already in account.","datetime":"2014-07-30T02:01:37Z"}`)
+		},
+	)
+
+	_, errAddLineup := client.AddLineup("token1", "/20131021/lineups/CAN-0000001-X")
+	if errAddLineup == nil {
+		t.Fail()
+	} else if errAddLineup.Error() != "Headend already in account." {
+		t.Fail()
+	}
+}
+
+func TestAddLineupFailsInvalidLineup(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "PUT")
+			testHeader(t, r, "token", "token1")
+
+			fmt.Fprint(w, `{"response":"INVALID_LINEUP","code":2105,"serverID":"serverID1","message":"The lineup you submitted doesn't exist.","datetime":"2014-07-30T02:02:04Z"}`)
+		},
+	)
+
+	_, errAddLineup := client.AddLineup("token1", "/20131021/lineups/CAN-0000001-X")
+	if errAddLineup == nil {
+		t.Fail()
+	} else if errAddLineup.Error() != "The lineup you submitted doesn't exist." {
+		t.Fail()
+	}
+}
+
+func TestAddLineupFailsInvalidUser(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/20131021/lineups/CAN-0000001-X",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "PUT")
+			testHeader(t, r, "token", "token1")
+			fmt.Fprint(w, `{"response":"INVALID_USER","code":4003,"serverID":"serverID1","message":"Invalid user.","datetime":"2014-07-30T01:48:11Z"}`)
+		},
+	)
+
+	_, errAddLineup := client.AddLineup("token1", "/20131021/lineups/CAN-0000001-X")
+	if errAddLineup == nil {
+		t.Fail()
+	} else if errAddLineup.Error() != "Invalid user." {
+		t.Fail()
+	}
+}
+
+func TestGetLineupsOK(t *testing.T) {
+	setup()
+
+	mux.HandleFunc(apiVersion+"/lineups",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+
+			fmt.Fprint(w, `{"serverID":"serverid1","datetime":"2014-07-30T02:34:37Z","lineups":[{"name":"name1","type":"type1","location":"location1","uri":"uri1"}]}`)
+		},
+	)
+
+	lineups, errGetLineups := client.GetLineups("token1")
+	if errGetLineups != nil {
+		t.Fatal(errGetLineups)
+	}
+
+	if len(lineups.Lineups) != 1 {
+		t.Fatalf("len(lineups.Lineups) != 1: %d", len(lineups.Lineups))
+	} else if lineups.Lineups[0].Name != "name1" {
+		t.Fatal(`lineups.Lineups[0].Name != "name1": %s`, lineups.Lineups[0].Name)
+	}
+}
+
+func TestGetLineupsFailsNoHeadends(t *testing.T) {
+	setup()
+
+	mux.HandleFunc(apiVersion+"/lineups",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+
+			// bug with the web service?
+			http.Error(w, "", http.StatusBadRequest)
+
+			fmt.Fprint(w, `{"response":"NO_LINEUPS","code":4102,"serverID":"serverID1","message":"No lineups have been added to this account.","datetime":"2014-07-30T01:21:56Z"}`)
+		},
+	)
+
+	_, errGetLineups := client.GetLineups("token1")
+	if errGetLineups == nil {
+		t.Fatal("errGetLineups == nil")
+	} else if errGetLineups.Error() != "No lineups have been added to this account." {
 		t.Fail()
 	}
 }
