@@ -156,6 +156,24 @@ func TestGetStatusOK(t *testing.T) {
 	}
 }
 
+func TestGetStatusFailsForbidden(t *testing.T) {
+	setup()
+
+	mux.HandleFunc(apiVersion+"/status",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+
+			http.Error(w, "", http.StatusForbidden)
+		},
+	)
+
+	_, err := client.GetStatus("token1")
+	if err != Err_Forbidden {
+		t.Fail()
+	}
+}
+
 func TestGetHeadendsOK(t *testing.T) {
 	setup()
 
