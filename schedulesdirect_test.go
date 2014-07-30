@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +36,20 @@ func testMethod(t *testing.T, r *http.Request, expectedMethod string) {
 func testHeader(t *testing.T, r *http.Request, header, expectedValue string) {
 	if r.Header.Get(header) != expectedValue {
 		t.Fatalf("token (%s) != expectedValue (%s)", r.Header.Get("token"), expectedValue)
+	}
+}
+
+func testUrlParameter(t *testing.T, r *http.Request, parameter, expectedValue string) {
+	if parameter == "postalcode" {
+		// There's a bug with postal code containing a space
+		// https://github.com/SchedulesDirect/JSON-Service/issues/31
+		expectedValue = strings.Replace(expectedValue, " ", "", -1)
+	}
+
+	p := r.URL.Query().Get(parameter)
+
+	if p != expectedValue {
+		t.Fatalf("parameter (%s (%s)) != expectedValue (%s)", parameter, p, expectedValue)
 	}
 }
 
@@ -119,5 +134,38 @@ func TestGetStatusOK(t *testing.T) {
 	_, err := client.GetStatus("token1")
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetHeadendsOK(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/headends",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+			testUrlParameter(t, r, "country", "CAN")
+			testUrlParameter(t, r, "postalcode", "H0H 0H0")
+
+			fmt.Fprint(w, `{"0000001":{"lineups":[{"name":"name1","uri":"uri1"},{"name":"name2","uri":"uri2"}],"location":"City1","type":"type1"},"0000002":{"lineups":[{"name":"name3","uri":"uri3"}],"location":"City2","type":"type2"}}`)
+		},
+	)
+
+	headends, errGetHeadends := client.GetHeadends("token1", "CAN", "H0H 0H0")
+	if errGetHeadends != nil {
+		t.Fatal(errGetHeadends)
+	}
+
+	if len(headends) != 2 {
+		t.Fatalf("len(headends) != 2: %d", len(headends))
+	} else {
+		if len(headends["0000001"].Lineups) != 2 {
+			t.Fatalf(`len(headends["0000001"].Lineups) != 2: %d`, len(headends["0000001"].Lineups))
+		} else if headends["0000001"].Lineups[0].Name != "name1" {
+			t.Fatalf(`headends["0000001"].Lineups[0].Name != "name1": %s`, headends["0000001"].Lineups[0].Name)
+		}
+		if len(headends["0000002"].Lineups) != 1 {
+			t.Fatalf(`len(headends["0000002"].Lineups) != 1: %d`, len(headends["0000002"].Lineups))
+		}
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -147,4 +149,60 @@ func (c sdclient) GetStatus(token string) (string, error) {
 	}
 
 	return "", nil
+}
+
+type lineup struct {
+	Name string `json:"name"`
+	Uri  string `json:"uri"`
+}
+
+type headend struct {
+	Lineups  []lineup `json:"lineups"`
+	Location string   `json:"location"`
+	Type     string   `json:"type"`
+}
+
+// country must be ISO-3166-1 alpha 3, see : https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
+func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]headend, error) {
+	// There's a bug with postal code containing a space
+	// https://github.com/SchedulesDirect/JSON-Service/issues/31
+	postalcode = strings.Replace(postalcode, " ", "", -1)
+
+	u, err := url.Parse(c.baseURL + "/headends")
+	if err != nil {
+		return map[string]headend{}, err
+	}
+
+	q := u.Query()
+	q.Set("country", country)
+	q.Set("postalcode", postalcode)
+	u.RawQuery = q.Encode()
+
+	var clientHttp http.Client
+
+	req, errNewRequest := http.NewRequest("GET", u.String(), nil)
+	if errNewRequest != nil {
+		return map[string]headend{}, errNewRequest
+	}
+
+	req.Header.Add("token", token)
+
+	resp, errDo := clientHttp.Do(req)
+	if errDo != nil {
+		return map[string]headend{}, errDo
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return map[string]headend{}, fmt.Errorf("resp.StatusCode != 200: %d", resp.StatusCode)
+	}
+
+	headends := make(map[string]headend)
+
+	errDecode := json.NewDecoder(resp.Body).Decode(&headends)
+	if errDecode != nil {
+		return map[string]headend{}, errDecode
+	}
+
+	return headends, nil
 }
