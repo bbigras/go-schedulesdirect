@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,7 +20,8 @@ const (
 )
 
 const (
-	sd_err_INVALID_USER = 4003
+	sd_err_INVALID_USER      = 4003
+	sd_err_INVALID_PARAMETER = 2050 // not sure, it's not listed on the web site
 )
 
 var (
@@ -162,6 +164,13 @@ type headend struct {
 	Type     string   `json:"type"`
 }
 
+type response struct {
+	Response string `json:"response"`
+	Code     int    `json:"code"`
+	Message  string `json:"message"`
+	ServerID string `json:"serverID"`
+}
+
 // country must be ISO-3166-1 alpha 3, see : https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
 func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]headend, error) {
 	// There's a bug with postal code containing a space
@@ -199,9 +208,24 @@ func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]hea
 
 	headends := make(map[string]headend)
 
-	errDecode := json.NewDecoder(resp.Body).Decode(&headends)
-	if errDecode != nil {
-		return map[string]headend{}, errDecode
+	data, errRead := ioutil.ReadAll(resp.Body)
+	if errRead != nil {
+		return map[string]headend{}, errRead
+	}
+
+	errUnmarshal := json.Unmarshal(data, &headends)
+	if errUnmarshal != nil {
+		// when there's an error, the service use another JSON format
+		var respError response
+
+		errUnmarshal2 := json.Unmarshal(data, &respError)
+		if errUnmarshal2 != nil {
+			return map[string]headend{}, errUnmarshal
+		} else if respError.Code == sd_err_INVALID_PARAMETER {
+			return map[string]headend{}, errors.New(respError.Message)
+		} else {
+			return map[string]headend{}, fmt.Errorf("error code unknown: %d", respError.Code)
+		}
 	}
 
 	return headends, nil

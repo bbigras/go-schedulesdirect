@@ -169,3 +169,23 @@ func TestGetHeadendsOK(t *testing.T) {
 		}
 	}
 }
+
+func TestGetHeadendsFailsWithMessage(t *testing.T) {
+	setup()
+
+	mux.HandleFunc("/headends",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "GET")
+			testHeader(t, r, "token", "token1")
+			testUrlParameter(t, r, "country", "CAN")
+			testUrlParameter(t, r, "postalcode", "H0H 0H0")
+
+			fmt.Fprint(w, `{"response":"INVALID_PARAMETER:COUNTRY","code":2050,"serverID":"AWS-SD-web.1","message":"The COUNTRY parameter must be ISO-3166-1 alpha 3. See http:\/\/en.wikipedia.org\/wiki\/ISO_3166-1_alpha-3","datetime":"2014-07-29T23:16:52Z"}`)
+		},
+	)
+
+	_, errGetHeadends := client.GetHeadends("token1", "CAN", "H0H 0H0")
+	if errGetHeadends.Error() != "The COUNTRY parameter must be ISO-3166-1 alpha 3. See http://en.wikipedia.org/wiki/ISO_3166-1_alpha-3" {
+		t.Fail()
+	}
+}
