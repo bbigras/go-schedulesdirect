@@ -480,6 +480,9 @@ type program struct {
 }
 
 func (c sdclient) GetProgramsInfo(token string, programs []string) ([]program, error) {
+	if len(programs) == 0 {
+		return []program{}, errors.New("programs slice is empty")
+	}
 
 	r := request{programs}
 
