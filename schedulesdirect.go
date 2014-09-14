@@ -23,14 +23,19 @@ const (
 )
 
 const (
-	sd_err_INVALID_USER = 4003
+	sd_err_OK              = 0
+	sd_err_SERVICE_OFFLINE = 3000
+	sd_err_INVALID_USER    = 4003
 	// sd_err_NO_HEADENDS  = 4102
+
+	WaitReconnectWhenOffline = 1 * time.Hour
 )
 
 var (
 	Err_Forbidden = errors.New("Forbidden")
 
-	err_INVALID_USER = errors.New("Invalid user")
+	err_INVALID_USER    = errors.New("Invalid user")
+	Err_SERVICE_OFFLINE = errors.New("Service offline")
 	// err_NO_HEADENDS  = errors.New("No headends")
 )
 
@@ -164,11 +169,14 @@ func (c sdclient) GetStatus(token string) (status, error) {
 		return status{}, errDecode
 	}
 
-	if s.Code != 0 {
+	switch s.Code {
+	case sd_err_SERVICE_OFFLINE:
+		return status{}, Err_SERVICE_OFFLINE
+	case sd_err_OK:
+		return s, nil
+	default:
 		return status{}, fmt.Errorf("s.Code != 0: %d", s.Code)
 	}
-
-	return s, nil
 }
 
 type lineup struct {
