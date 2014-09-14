@@ -459,7 +459,7 @@ type request struct {
 }
 
 type requestSchedules struct {
-	Request []int `json:"request"`
+	Request []string `json:"request"`
 }
 
 type program struct {
@@ -565,7 +565,7 @@ type schedule struct {
 	} `json:"programs"`
 }
 
-func (c sdclient) GetSchedules(token string, stationsIDs []int) ([]schedule, error) {
+func (c sdclient) GetSchedules(token string, stationsIDs []string) ([]schedule, error) {
 	r := requestSchedules{stationsIDs}
 
 	var buf bytes.Buffer

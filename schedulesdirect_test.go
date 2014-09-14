@@ -577,16 +577,16 @@ func TestGetSchedulesOK(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "POST")
 			testHeader(t, r, "token", "token1")
-			testPayload(t, r, []byte(`{"request":[10001,10002]}`+"\n"))
+			testPayload(t, r, []byte(`{"request":["10001","10002"]}`+"\n"))
 
 			fmt.Fprint(w, `{"metadata": {"endDate": "2014-08-12","startDate": "2014-07-30"},"programs": [{"airDateTime": "2014-07-30T00:30:00Z","audioProperties": ["ap1","ap2"],"contentRating": [{"body": "body1","code": "code1"}],"duration": 1800,"md5": "exubfjxJmKcSe52dVLj83g","new": true,"programID": "program1","syndication": {"source": "ss1","type": "st1"}},{"airDateTime": "2014-08-12T23:30:00Z","audioProperties": ["ap3","ap4","ap5"],"contentAdvisory": {"rating1": ["stuff1","stuff2"]},"contentRating": [{"body": "body2","code": "code2"}],"duration": 1800,"md5": "5BxxvnI4Nv9ZuT9oQvOpQA","programID": "program2","syndication": {"source": "ss2","type": "st2"}}],"stationID": "10001"}
 {"metadata": {"endDate": "2014-08-12","startDate": "2014-07-30"},"programs": [{"airDateTime": "2014-07-30T00:30:00Z","duration": 1800,"md5": "exubfjxJmKcSe52dVLj83g","new": true,"programID": "program3","syndication": {"source": "ss3","type": "st3"}}],"stationID": "10002"}`)
 		},
 	)
 
-	schedules, err := client.GetSchedules("token1", []int{
-		10001,
-		10002,
+	schedules, err := client.GetSchedules("token1", []string{
+		"10001",
+		"10002",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -623,14 +623,14 @@ func TestGetSchedulesFailsStationNotInLineup(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {
 			testMethod(t, r, "POST")
 			testHeader(t, r, "token", "token1")
-			testPayload(t, r, []byte(`{"request":[10002]}`+"\n"))
+			testPayload(t, r, []byte(`{"request":["10002"]}`+"\n"))
 
 			fmt.Fprint(w, `{"stationID":10002,"response":"ERROR","code":404,"serverID":"serverid1","message":"This stationID (10002) is not in any of your lineups.","datetime":"2014-07-30T17:14:56Z"}`)
 		},
 	)
 
-	_, err := client.GetSchedules("token1", []int{
-		10002,
+	_, err := client.GetSchedules("token1", []string{
+		"10002",
 	})
 	if err == nil {
 		t.Fatal(err)
