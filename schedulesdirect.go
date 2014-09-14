@@ -495,17 +495,59 @@ type requestSchedules struct {
 	Request []string `json:"request"`
 }
 
+type person struct {
+	BillingOrder string `json:"billingOrder"`
+	Name         string `json:"name"`
+	NameId       string `json:"nameId"`
+	PersonId     string `json:"personId"`
+	Role         string `json:"role"`
+}
+
+type cast struct {
+	person
+	CharacterName string `json:"characterName"`
+}
+
+type DescriptionT struct {
+	Description         string `json:"description"`
+	DescriptionLanguage string `json:"descriptionLanguage"`
+}
+
 type program struct {
 	EventDetails struct {
 		SubType string `json:"subType"`
 	} `json:"eventDetails"`
 
-	Genres          []string          `json:"genres"`
-	Md5             string            `json:"md5"`
-	OriginalAirDate string            `json:"originalAirDate"`
-	ProgramID       string            `json:"programID"`
-	ShowType        string            `json:"showType"`
-	Titles          map[string]string `json:"titles"`
+	Genres          []string                  `json:"genres"`
+	Md5             string                    `json:"md5"`
+	OriginalAirDate string                    `json:"originalAirDate"`
+	ProgramID       string                    `json:"programID"`
+	ShowType        string                    `json:"showType"`
+	Titles          map[string]string         `json:"titles"`
+	Descriptions    map[string][]DescriptionT `json:"descriptions"`
+	Cast            []cast                    `json:"cast"`
+	Crew            []person                  `json:"crew"`
+	Recommendations []struct {
+		ProgramID string `json:"programID"`
+		Title120  string `json:"title120"`
+	} `json:"recommendations"`
+	Images []struct {
+		Dimension string `json:"dimension"`
+		Md5       string `json:"md5"`
+		Uri       string `json:"uri"`
+	}
+
+	Movie struct {
+		Duration      int    `json:"duration"`
+		Year          string `json:"year"`
+		QualityRating []struct {
+			Increment   string `json:"increment"`
+			MaxRating   string `json:"maxRating"`
+			MinRating   string `json:"minRating"`
+			Rating      string `json:"rating"`
+			RatingsBody string `json:"ratingsBody"`
+		} `json:"qualityRating"`
+	} `json:"movie"`
 
 	// for errors
 	Code    int    `json:"code"`
@@ -585,6 +627,7 @@ type schedule struct {
 	Programs []struct {
 		AirDateTime     time.Time `json:"airDateTime"` // full iso datetime
 		AudioProperties []string  `json:"audioProperties"`
+		VideoProperties []string  `json:"videoProperties"`
 		ContentRating   []struct {
 			Body string `json:"body"`
 			Code string `json:"code"`
