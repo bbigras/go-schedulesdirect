@@ -344,7 +344,7 @@ func (c sdclient) DelLineup(token, uri string) (int, error) {
 
 type channelMapping struct {
 	Map []struct {
-		Channel   string `json:"map"`
+		Channel   string `json:"channel"`
 		StationId string `json:"stationID"`
 	} `json:"map"`
 	Metadata struct {
