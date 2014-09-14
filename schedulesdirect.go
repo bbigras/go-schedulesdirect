@@ -375,6 +375,39 @@ type channelMapping struct {
 	Message string `json:"message"`
 }
 
+func JsonToChannelMapping(jsonData []byte) (channelMapping, error) {
+	var cm channelMapping
+
+	errUnmarshal := json.Unmarshal(jsonData, &cm)
+	if errUnmarshal != nil {
+		return channelMapping{}, errUnmarshal
+	}
+
+	return cm, nil
+}
+
+func JsonToSchedules(jsonData []byte) (schedule, error) {
+	var cm schedule
+
+	errUnmarshal := json.Unmarshal(jsonData, &cm)
+	if errUnmarshal != nil {
+		return schedule{}, errUnmarshal
+	}
+
+	return cm, nil
+}
+
+func JsonToProgram(jsonData []byte) (program, error) {
+	var cm program
+
+	errUnmarshal := json.Unmarshal(jsonData, &cm)
+	if errUnmarshal != nil {
+		return program{}, errUnmarshal
+	}
+
+	return cm, nil
+}
+
 func (c sdclient) GetChannelMapping(token, uri string) (channelMapping, error) {
 	var clientHttp http.Client
 
