@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -604,18 +605,23 @@ func (c sdclient) GetProgramsInfo(token string, programs []string) ([]program, e
 
 		errUnmarshal := json.Unmarshal(scanner.Bytes(), &p)
 		if errUnmarshal != nil {
-			return []program{}, errUnmarshal
-		}
+			log.Printf("error unmarshaling program: %s\n", scanner.Bytes())
+		} else {
 
-		if p.Code != 0 {
-			if p.ProgramID == "" {
-				return []program{}, errors.New(p.Message)
-			} else {
-				return []program{}, fmt.Errorf("%s: %s", p.ProgramID, p.Message)
+			if p.Genres == nil {
+				p.Genres = []string{}
 			}
-		}
 
-		result = append(result, p)
+			if p.Code != 0 {
+				if p.ProgramID == "" {
+					return []program{}, errors.New(p.Message)
+				} else {
+					return []program{}, fmt.Errorf("%s: %s", p.ProgramID, p.Message)
+				}
+			}
+
+			result = append(result, p)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
