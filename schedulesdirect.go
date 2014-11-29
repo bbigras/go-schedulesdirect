@@ -89,7 +89,18 @@ func (c sdclient) GetToken(username, password string) (string, error) {
 	}
 
 	// TODO: check for something like path.Join() for URLs
-	resp, errPost := http.Post(c.baseURL+apiVersion+"/token", "application/json", &buf)
+
+	var client http.Client
+
+	req, err := http.NewRequest("POST", c.baseURL+apiVersion+"/token", &buf)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", "go-schedulesdirect")
+
+	resp, errPost := client.Do(req)
 	if errPost != nil {
 		return "", errPost
 	}
@@ -149,6 +160,7 @@ func (c sdclient) GetStatus(token string) (status, error) {
 		return status{}, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 
 	resp, errDo := clientHttp.Do(req)
@@ -242,6 +254,7 @@ func (c sdclient) GetHeadends(token, country, postalcode string) (map[string]hea
 		return map[string]headend{}, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 
 	resp, errDo := clientHttp.Do(req)
@@ -286,6 +299,7 @@ func addDelLineup(c sdclient, token, uri, method string, typeOpLineup int) (int,
 		return -1, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 
 	resp, errDo := clientHttp.Do(req)
@@ -425,6 +439,7 @@ func (c sdclient) GetChannelMapping(token, uri string) (channelMapping, error) {
 		return channelMapping{}, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 
 	resp, errDo := clientHttp.Do(req)
@@ -459,6 +474,7 @@ func (c sdclient) GetLineups(token string) (lineups, error) {
 		return lineups{}, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 
 	resp, errDo := clientHttp.Do(req)
@@ -584,6 +600,7 @@ func (c sdclient) GetProgramsInfo(token string, programs []string) ([]program, e
 		return []program{}, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 	req.Header.Add("Accept-Encoding", "deflate")
 
@@ -675,6 +692,7 @@ func (c sdclient) GetSchedules(token string, stationsIDs []string) ([]schedule, 
 		return []schedule{}, errNewRequest
 	}
 
+	req.Header.Add("User-Agent", "go-schedulesdirect")
 	req.Header.Add("token", token)
 	req.Header.Add("Accept-Encoding", "deflate")
 
